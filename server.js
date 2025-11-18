@@ -1,5 +1,5 @@
 // ============================================
-// Lessons Backend (Express + MongoDB)
+// Simple Lessons Backend (Express + MongoDB)
 // ============================================
 
 // Load env variables (MongoDB URI, DB name)
@@ -16,7 +16,15 @@ const app = express();
 // --------------------------------------------
 // Middleware
 // --------------------------------------------
-app.use(cors());            // allow frontend to talk to backend
+
+// ✅ Allow requests from your frontend (and localhost for testing)
+app.use(cors({
+  origin: [
+    'https://learn-app-frontend.onrender.com',
+    'http://localhost:5500'
+  ]
+}));
+
 app.use(express.json());    // read JSON request bodies
 app.use(morgan('dev'));     // request logger
 
@@ -41,7 +49,7 @@ app.use('/images', (_req, res) => {
 // MongoDB Setup
 // --------------------------------------------
 const uri = process.env.MONGO_URI;
-const dbName = process.env.DB_NAME; // "learn_app"
+const dbName = process.env.DB_NAME; // e.g. "learn_app"
 
 let Lessons, Orders;
 
@@ -66,6 +74,7 @@ app.get('/api/lessons', async (req, res) => {
     const data = await Lessons.find().toArray();
     res.json(data);
   } catch (err) {
+    console.error('Error loading lessons:', err);
     res.status(500).json({ message: 'Failed to load lessons' });
   }
 });
@@ -84,6 +93,7 @@ app.post('/api/order', async (req, res) => {
     await Orders.insertOne(order);
     res.json({ message: 'Order saved' });
   } catch (err) {
+    console.error('Error saving order:', err);
     res.status(500).json({ message: 'Failed to save order' });
   }
 });
@@ -94,8 +104,8 @@ app.put('/api/lessons', async (req, res) => {
     const { subject, city, spaces } = req.body;
 
     const result = await Lessons.updateOne(
-      { subject, "locations.city": city },
-      { $set: { "locations.$.spaces": spaces } }
+      { subject, 'locations.city': city },
+      { $set: { 'locations.$.spaces': spaces } }
     );
 
     if (result.matchedCount === 0)
@@ -103,6 +113,7 @@ app.put('/api/lessons', async (req, res) => {
 
     res.json({ message: 'Lesson updated' });
   } catch (err) {
+    console.error('Error updating lesson:', err);
     res.status(500).json({ message: 'Failed to update lesson' });
   }
 });
@@ -114,4 +125,6 @@ const port = process.env.PORT || 3000;
 
 connectDB().then(() => {
   app.listen(port, () => console.log(`Backend running on port ${port}`));
+}).catch(err => {
+  console.error('Failed to connect to MongoDB:', err);
 });
