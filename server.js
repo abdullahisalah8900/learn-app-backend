@@ -1,8 +1,7 @@
 // ============================================
-// Simple Lessons Backend (Express + MongoDB)
+// Lessons Backend (Express + MongoDB)
 // ============================================
 
-// Load env variables (MongoDB URI, DB name)
 require('dotenv').config();
 
 const express = require('express');
@@ -16,15 +15,7 @@ const app = express();
 // --------------------------------------------
 // Middleware
 // --------------------------------------------
-
-// ✅ Allow requests from your frontend (and localhost for testing)
-app.use(cors({
-  origin: [
-    'https://learn-app-frontend.onrender.com',
-    'http://localhost:5500'
-  ]
-}));
-
+app.use(cors());            // allow frontend to talk to backend
 app.use(express.json());    // read JSON request bodies
 app.use(morgan('dev'));     // request logger
 
@@ -35,8 +26,7 @@ app.use((req, res, next) => {
 });
 
 // --------------------------------------------
-// Static Images Folder
-// (frontend loads images using backend URL)
+// Static Images Folder 
 // --------------------------------------------
 const imagesDir = path.join(__dirname, 'images');
 app.use('/images', express.static(imagesDir));
@@ -51,7 +41,8 @@ app.use('/images', (_req, res) => {
 const uri = process.env.MONGO_URI;
 const dbName = process.env.DB_NAME; // e.g. "learn_app"
 
-let Lessons, Orders;
+let Lessons;
+let Orders;
 
 async function connectDB() {
   const client = new MongoClient(uri);
@@ -68,8 +59,8 @@ async function connectDB() {
 // API ROUTES
 // --------------------------------------------
 
-// GET all lessons
-app.get('/api/lessons', async (req, res) => {
+// GET all lessons (flat: subject, location, price, spaces, image)
+app.get('/api/lessons', async (_req, res) => {
   try {
     const data = await Lessons.find().toArray();
     res.json(data);
@@ -98,18 +89,23 @@ app.post('/api/order', async (req, res) => {
   }
 });
 
-// PUT update lesson spaces
+// PUT update lesson spaces (flat schema: subject + location)
 app.put('/api/lessons', async (req, res) => {
   try {
-    const { subject, city, spaces } = req.body;
+    const { subject, location, spaces } = req.body;
+
+    if (!subject || !location || typeof spaces !== 'number') {
+      return res.status(400).json({ message: 'subject, location, and spaces are required' });
+    }
 
     const result = await Lessons.updateOne(
-      { subject, 'locations.city': city },
-      { $set: { 'locations.$.spaces': spaces } }
+      { subject, location },          // match one flat lesson
+      { $set: { spaces: spaces } }    // set new spaces value
     );
 
-    if (result.matchedCount === 0)
+    if (result.matchedCount === 0) {
       return res.status(404).json({ message: 'Lesson not found' });
+    }
 
     res.json({ message: 'Lesson updated' });
   } catch (err) {
@@ -124,7 +120,10 @@ app.put('/api/lessons', async (req, res) => {
 const port = process.env.PORT || 3000;
 
 connectDB().then(() => {
-  app.listen(port, () => console.log(`Backend running on port ${port}`));
-}).catch(err => {
+  app.listen(port, () => {
+    console.log(`Backend running on port ${port}`);
+  });
+}).catch((err) => {
   console.error('Failed to connect to MongoDB:', err);
+  process.exit(1);
 });
