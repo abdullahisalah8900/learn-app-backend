@@ -13,9 +13,19 @@ const path = require('path');
 const app = express();
 
 // --------------------------------------------
-// Middleware
+// CORS 
 // --------------------------------------------
-app.use(cors());            // allow frontend to talk to backend
+const corsOptions = {
+  origin: "https://abdullahisalah8900.github.io",
+  methods: ["GET", "POST", "PUT"],
+  allowedHeaders: ["Content-Type"]
+};
+
+app.use(cors(corsOptions));
+
+// --------------------------------------------
+// Core middleware
+// --------------------------------------------
 app.use(express.json());    // read JSON request bodies
 app.use(morgan('dev'));     // request logger
 
@@ -26,11 +36,12 @@ app.use((req, res, next) => {
 });
 
 // --------------------------------------------
-// Static Images Folder 
+// Static Images Folder (optional)
 // --------------------------------------------
 const imagesDir = path.join(__dirname, 'images');
 app.use('/images', express.static(imagesDir));
 
+// If image not found, return JSON message (coursework requirement)
 app.use('/images', (_req, res) => {
   res.status(404).json({ error: 'Image not found' });
 });
@@ -95,7 +106,9 @@ app.put('/api/lessons', async (req, res) => {
     const { subject, location, spaces } = req.body;
 
     if (!subject || !location || typeof spaces !== 'number') {
-      return res.status(400).json({ message: 'subject, location, and spaces are required' });
+      return res
+        .status(400)
+        .json({ message: 'subject, location, and numeric spaces are required' });
     }
 
     const result = await Lessons.updateOne(
@@ -119,11 +132,13 @@ app.put('/api/lessons', async (req, res) => {
 // --------------------------------------------
 const port = process.env.PORT || 3000;
 
-connectDB().then(() => {
-  app.listen(port, () => {
-    console.log(`Backend running on port ${port}`);
+connectDB()
+  .then(() => {
+    app.listen(port, () => {
+      console.log(`Backend running on port ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to connect to MongoDB:', err);
+    process.exit(1);
   });
-}).catch((err) => {
-  console.error('Failed to connect to MongoDB:', err);
-  process.exit(1);
-});
